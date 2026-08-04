@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YT Video Downloader</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 600px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+        
+        input[type="text"], select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        #videoInfo {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        #videoInfo img {
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        
+        #videoInfo h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+        }
+        
+        .status.loading {
+            display: block;
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .status.success {
+            display: block;
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+        
+        .status.error {
+            display: block;
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #1976d2;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 YouTube Downloader</h1>
+        
+        <div class="input-group">
+            <label for="url">YouTube URL එක:</label>
+            <input type="text" id="url" placeholder="https://youtube.com/watch?v=...">
+        </div>
+        
+        <div class="input-group">
+            <label for="quality">Quality එක:</label>
+            <select id="quality">
+                <option value="best">Best Quality</option>
+                <option value="worst">Low Quality (Fast)</option>
+            </select>
+        </div>
+        
+        <button onclick="fetchInfo()" id="infoBtn">Video Info ගන්න</button>
+        <button onclick="downloadVideo()" id="downloadBtn" style="margin-top: 10px; display: none;">
+            Download කරන්න
+        </button>
+        
+        <div id="videoInfo">
+            <img id="thumbnail" src="" alt="Thumbnail">
+            <h3 id="videoTitle"></h3>
+            <p id="videoDuration"></p>
+        </div>
+        
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        let currentFormats = [];
+        
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.className = 'status ' + type;
+            if (type === 'loading') {
+                status.innerHTML = '<span class="spinner"></span>' + message;
+            } else {
+                status.textContent = message;
+            }
+        }
+        
+        async function fetchInfo() {
+            const url = document.getElementById('url').value;
+            if (!url) {
+                showStatus('URL එක දෙන්න!', 'error');
+                return;
+            }
+            
+            showStatus('Info load වෙනවා...', 'loading');
+            document.getElementById('infoBtn').disabled = true;
+            
+            try {
+                const response = await fetch('/get-info', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url})
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Video info පෙන්වන්න
+                document.getElementById('videoInfo').style.display = 'block';
+                document.getElementById('thumbnail').src = data.thumbnail;
+                document.getElementById('videoTitle').textContent = data.title;
+                
+                const minutes = Math.floor(data.duration / 60);
+                const seconds = data.duration % 60;
+                document.getElementById('videoDuration').textContent = 
+                    `Duration: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+                
+                // Quality options update කරන්න
+                const qualitySelect = document.getElementById('quality');
+                qualitySelect.innerHTML = '';
+                data.formats.forEach(f => {
+                    const option = document.createElement('option');
+                    option.value = f.format_id;
+                    option.textContent = f.quality;
+                    qualitySelect.appendChild(option);
+                });
+                
+                document.getElementById('downloadBtn').style.display = 'block';
+                showStatus('Video info load උනා!', 'success');
+                
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+            } finally {
+                document.getElementById('infoBtn').disabled = false;
+            }
+        }
+        
+        async function downloadVideo() {
+            const url = document.getElementById('url').value;
+            const quality = document.getElementById('quality').value;
+            
+            showStatus('Download වෙනවා... මිනිත්තුවක් ඉන්න', 'loading');
+            document.getElementById('downloadBtn').disabled = true;
+            
+            try {
+                const response = await fetch('/download', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url, quality})
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                showStatus('✅ ' + data.message + ' File: ' + data.filename, 'success');
+                
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+            } finally {
+                document.getElementById('downloadBtn').disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
