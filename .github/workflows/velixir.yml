@@ -8,7 +8,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: velixir/velixir/actions/deploy@v1
-        with:
-          api-key: ${{ secrets.VELIXIR_API_KEY }}
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to velixir
+        env:
+          VELIXIR_TOKEN: ${{ secrets.VELIXIR_API_KEY }}
+        run: |
+          echo "Velixir CLI deployment"
+          curl -fsSL https://velixir.net/install.sh | sh
+          velixir deploy --prod
